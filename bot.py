@@ -5,6 +5,8 @@ import threading
 TOKEN = os.environ.get("TOKEN")
 bot = telebot.TeleBot(TOKEN)
 
+ADMIN_ID = 8115276999
+
 CITIES = ["Бишкек", "Ош", "Баткен", "Жалал-Абад", "Каракол", "Нарын", "Талас", "Чүй"]
 CATEGORIES = ["🚴 Курьер", "☕ Официант", "🛒 Кассир", "🧹 Тазалоочу", "📞 Call-центр", "💻 IT / SMM", "📦 Башка"]
 
@@ -43,7 +45,35 @@ def categories_menu():
 
 @bot.message_handler(commands=['start'])
 def start(message):
+    try:
+        with open("users.json", "r", encoding="utf-8") as f:
+            all_users = json.load(f)
+    except:
+        all_users = []
+    if message.chat.id not in [u["id"] for u in all_users]:
+        all_users.append({"id": message.chat.id, "name": message.from_user.first_name, "username": message.from_user.username})
+        with open("users.json", "w", encoding="utf-8") as f:
+            json.dump(all_users, f, ensure_ascii=False, indent=2)
     bot.send_message(message.chat.id, "👋 Салам! Мен - Жумуш Ботумун.\n\nКыргызстан боюнча жумуш издегендер үчүн!\n\nТөмөндөн танда:", reply_markup=main_menu())
+
+@bot.message_handler(commands=['stats'])
+def stats(message):
+    if message.chat.id != ADMIN_ID:
+        bot.send_message(message.chat.id, "Бул команда тек админ үчүн.")
+        return
+    try:
+        with open("users.json", "r", encoding="utf-8") as f:
+            all_users = json.load(f)
+    except:
+        all_users = []
+    vacancies = load_vacancies()
+    text = f"📊 СТАТИСТИКА\n\n👥 Бардык кирген адам: {len(all_users)}\n📝 Бардык вакансия: {len(vacancies)}\n\n🆕 Акыркы 10 адам:\n"
+    for u in all_users[-10:]:
+        text += f"- {u.get('name')} @{u.get('username')}\n"
+    text += "\n💼 Акыркы вакансиялар:\n"
+    for v in vacancies[-5:]:
+        text += f"- {v['title']} | {v['city']} | {v['salary']}\n"
+    bot.send_message(message.chat.id, text)
 
 @bot.message_handler(func=lambda m: m.text == "🔙 Артка")
 def back(message):
